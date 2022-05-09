@@ -89,16 +89,12 @@ LTCTensorImpl::LTCTensorImpl(LazyTensor&& tensor)
   is_non_overlapping_and_dense_ = false;
 
   auto rank = tensor_->shape().Get().sizes().size();
-  std::vector<int64_t> sym_ints;
-  sym_ints.reserve(rank);
-
+  sym_sizes_.reserve(rank);
   for (auto i: c10::irange(rank)) {
     auto dim_node = MakeNode<SizeNode>(this->tensor_->GetIrValue(), i);
     auto sn = std::make_shared<torch::lazy::SymbolicIntNode>(dim_node);
-    sym_ints.push_back(sn->toSymInt().data());
+    sym_sizes_.push_back(sn->toSymInt());
   }
-
-  sizes_and_strides_.set_sizes(sym_ints);
 }
 
 void LTCTensorImpl::set_tensor(const LazyTensorPtr& lazy_tensor) {
@@ -146,8 +142,7 @@ void LTCTensorImpl::shallow_copy_from(
 int64_t LTCTensorImpl::size(int64_t d) const {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
   const_cast<LTCTensorImpl*>(this)->setup_size_properties();
-  //return c10::TensorImpl::size(d);
-  return upper_bounds_.at(d);
+  return c10::TensorImpl::size(d);
 }
 
 int64_t LTCTensorImpl::stride(int64_t d) const {
@@ -156,10 +151,10 @@ int64_t LTCTensorImpl::stride(int64_t d) const {
   return c10::TensorImpl::stride(d);
 }
 
-//TODO: Note, we will actually be using TensorImpl::sym_sizes
-// this is just for illustration purpose
+//TODO: Note, we should be actually using TensorImpl::sym_sizes
+// but I'm trying to keep this PR standalone and small
 c10::SymIntArrayRef LTCTensorImpl::sym_sizes() const {
-  return c10::SymIntArrayRef(reinterpret_cast<const c10::SymInt*>(sizes_and_strides_.sizes_data()), sizes_and_strides_.size());
+  return c10::SymIntArrayRef(sym_sizes_.data(), sym_sizes_.size());
 }
 
 void LTCTensorImpl::setup_size_properties() {
@@ -171,8 +166,7 @@ void LTCTensorImpl::setup_size_properties() {
     // We can't call refresh_numel() given we override sizes() too.
     numel_ = shape.Get().numel();
 
-    //sizes_and_strides_.set_sizes(shape.Get().sizes());
-    upper_bounds_.assign(shape.Get().sizes().begin(), shape.Get().sizes().end());
+    sizes_and_strides_.set_sizes(shape.Get().sizes());
 
     // We can't call empty_tensor_restride(c10::MemoryFormat::Contiguous) given we override sizes() too.
     std::vector<int64_t> updated_strides;
@@ -189,8 +183,7 @@ void LTCTensorImpl::setup_size_properties() {
 at::IntArrayRef LTCTensorImpl::sizes() const {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
   const_cast<LTCTensorImpl*>(this)->setup_size_properties();
-  return upper_bounds_;
-  //return c10::TensorImpl::sizes();
+  return c10::TensorImpl::sizes();
 }
 
 at::IntArrayRef LTCTensorImpl::strides() const {
@@ -202,8 +195,7 @@ at::IntArrayRef LTCTensorImpl::strides() const {
 int64_t LTCTensorImpl::dim() const {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
   const_cast<LTCTensorImpl*>(this)->setup_size_properties();
-  return upper_bounds_.size();
-  //return c10::TensorImpl::dim();
+  return c10::TensorImpl::dim();
 }
 
 int64_t LTCTensorImpl::numel() const {

@@ -54,7 +54,7 @@ class TORCH_API LTCTensorImpl final : public c10::TensorImpl {
   void setup_size_properties();
 
   LazyTensorPtr tensor_;
-  std::vector<int64_t> upper_bounds_;
+  std::vector<c10::SymInt> sym_sizes_;
   size_t generation_ {0};
 };
 
