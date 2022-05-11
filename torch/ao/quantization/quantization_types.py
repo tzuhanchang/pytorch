@@ -11,8 +11,11 @@ NodePattern = Union[Tuple[Node, Node], Tuple[Node, Tuple[Node, Node]], Any]
 # TODO(future PR): improve this.
 QuantizerCls = Any
 
+ExampleInputs = Tuple[Any, ...]
+
 __all__ = [
     "Pattern",
     "NodePattern",
     "QuantizerCls",
+    "ExampleInputsType",
 ]
