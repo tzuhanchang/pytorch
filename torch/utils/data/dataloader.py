@@ -18,7 +18,17 @@ import torch.multiprocessing as multiprocessing
 from torch._utils import ExceptionWrapper
 from torch._six import string_classes
 
-from . import IterDataPipe, IterableDataset, Sampler, SequentialSampler, RandomSampler, BatchSampler, Dataset
+from . import (
+    IterDataPipe,
+    MapDataPipe,
+    IterableDataset,
+    Sampler,
+    SequentialSampler,
+    RandomSampler,
+    BatchSampler,
+    Dataset,
+    TravelingIterDataPipe,
+    TravelingMapDataPipe)
 from . import _utils
 
 import torch.utils.data.graph_settings
@@ -208,6 +218,12 @@ class DataLoader(Generic[T_co]):
         self.timeout = timeout
         self.worker_init_fn = worker_init_fn
         self.multiprocessing_context = multiprocessing_context
+
+        # TravelingDataPipe container makes it easier to serialize without redefining pickler
+        if isinstance(self.dataset, IterDataPipe):
+            self.dataset = TravelingIterDataPipe(self.dataset)
+        elif isinstance(self.dataset, MapDataPipe):
+            self.dataset = TravelingMapDataPipe(self.dataset)
 
         # Arg-check dataset related before checking samplers because we want to
         # tell users that iterable-style datasets are incompatible with custom
